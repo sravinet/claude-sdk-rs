@@ -81,7 +81,8 @@ async fn basic_usage_tracking() -> Result<(), Box<dyn std::error::Error>> {
                     }
 
                     if let Some(tokens) = metadata.tokens_used {
-                        if let Some(total) = tokens.total_tokens {
+                        let total = tokens.input_tokens + tokens.output_tokens;
+                        if total > 0 {
                             total_tokens += total;
                             println!("   Tokens: {}", total);
                         }
@@ -141,7 +142,7 @@ async fn cost_analytics() -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(cost) = metadata.cost_usd {
                         let tokens = metadata
                             .tokens_used
-                            .and_then(|t| t.total_tokens)
+                            .map(|t| t.input_tokens + t.output_tokens)
                             .unwrap_or(0);
 
                         cost_breakdown.push((scenario, cost, tokens));
@@ -232,7 +233,8 @@ async fn performance_metrics() -> Result<(), Box<dyn std::error::Error>> {
 
                 if let Some(metadata) = response.metadata {
                     if let Some(tokens) = metadata.tokens_used {
-                        if let Some(total) = tokens.total_tokens {
+                        let total = tokens.input_tokens + tokens.output_tokens;
+                        if total > 0 {
                             println!(
                                 "   Token throughput: {:.2} tokens/sec",
                                 total as f64 / duration.as_secs_f64()
