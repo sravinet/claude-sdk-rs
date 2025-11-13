@@ -21,6 +21,8 @@ pub struct StreamReconnectionManager {
     base_delay: Duration,
     /// Last successful connection time
     last_success: RwLock<Option<Instant>>,
+    /// Connection start time for duration tracking
+    connection_start: RwLock<Option<Instant>>,
     /// Connection health metrics
     health_metrics: StreamHealthMetrics,
 }
@@ -46,6 +48,7 @@ impl StreamReconnectionManager {
             max_attempts,
             base_delay,
             last_success: RwLock::new(None),
+            connection_start: RwLock::new(None),
             health_metrics: StreamHealthMetrics {
                 successful_connections: AtomicU64::new(0),
                 failed_connections: AtomicU64::new(0),
@@ -80,6 +83,9 @@ impl StreamReconnectionManager {
 
         sleep(delay).await;
 
+        // Record connection attempt start time
+        *self.connection_start.write().await = Some(Instant::now());
+
         match connect_fn().await {
             Ok(result) => {
                 self.on_success().await;
@@ -108,10 +114,34 @@ impl StreamReconnectionManager {
     /// Record successful connection
     async fn on_success(&self) {
         self.attempts.store(0, Ordering::SeqCst);
-        *self.last_success.write().await = Some(Instant::now());
+        let now = Instant::now();
+        *self.last_success.write().await = Some(now);
+        
+        // Update connection duration if we have a start time
+        if let Some(start_time) = *self.connection_start.read().await {
+            let duration = now.duration_since(start_time);
+            self.update_avg_duration(duration).await;
+        }
+        
         self.health_metrics
             .successful_connections
             .fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Update average connection duration
+    async fn update_avg_duration(&self, new_duration: Duration) {
+        let mut avg_duration = self.health_metrics.avg_connection_duration.write().await;
+        let success_count = self.health_metrics.successful_connections.load(Ordering::SeqCst);
+        
+        if success_count == 0 {
+            *avg_duration = new_duration;
+        } else {
+            // Calculate running average
+            let old_avg_millis = avg_duration.as_millis() as f64;
+            let new_millis = new_duration.as_millis() as f64;
+            let new_avg_millis = (old_avg_millis * (success_count as f64) + new_millis) / ((success_count + 1) as f64);
+            *avg_duration = Duration::from_millis(new_avg_millis as u64);
+        }
     }
 
     /// Record failed connection
@@ -146,6 +176,7 @@ impl StreamReconnectionManager {
             current_attempts: self.attempts.load(Ordering::SeqCst),
             last_success: *self.last_success.read().await,
             last_error: *self.health_metrics.last_error.read().await,
+            avg_connection_duration: *self.health_metrics.avg_connection_duration.read().await,
         }
     }
 }
@@ -163,6 +194,8 @@ pub struct StreamHealthStatus {
     pub last_success: Option<Instant>,
     /// Last error occurrence
     pub last_error: Option<Instant>,
+    /// Average connection duration
+    pub avg_connection_duration: Duration,
 }
 
 /// Circuit breaker for preventing cascading failures
