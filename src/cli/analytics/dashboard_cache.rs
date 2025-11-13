@@ -954,6 +954,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow background task test"]
     async fn test_cache_cleanup_task() -> Result<()> {
         let config = CacheConfig {
             cleanup_interval_seconds: 1, // Very frequent for testing

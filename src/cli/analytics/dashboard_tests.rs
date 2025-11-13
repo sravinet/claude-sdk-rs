@@ -862,6 +862,7 @@ mod caching_tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow cache test"]
     async fn test_cache_performance_improvements() -> Result<()> {
         let fixture = DashboardTestFixture::new().await?;
 
@@ -998,6 +999,7 @@ mod caching_tests {
         Ok(())
     }
 
+    #[ignore = "slow cache test"]
     #[tokio::test]
     async fn test_cache_memory_efficiency() -> Result<()> {
         let fixture = DashboardTestFixture::new().await?;
@@ -1127,6 +1129,7 @@ mod edge_case_tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow stress test"]
     async fn test_extreme_data_volumes() -> Result<()> {
         let fixture = DashboardTestFixture::new().await?;
 

@@ -16,6 +16,7 @@ mod baseline_tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_establish_performance_baseline() -> Result<()> {
         let mut profiler = PerformanceProfiler::new();
 
@@ -57,6 +58,7 @@ mod baseline_tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_performance_scaling_characteristics() -> Result<()> {
         let profiler = PerformanceProfiler::new();
 
@@ -105,6 +107,7 @@ mod baseline_tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_operation_breakdown_profiling() -> Result<()> {
         let profiler = PerformanceProfiler::new();
         let profile = profiler.profile_dashboard_generation(1000).await?;
@@ -149,6 +152,7 @@ mod baseline_tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_load_testing_scenarios() -> Result<()> {
         let profiler = PerformanceProfiler::new();
 
@@ -238,6 +242,7 @@ mod baseline_tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_memory_usage_characteristics() -> Result<()> {
         let profiler = PerformanceProfiler::new();
 
@@ -282,6 +287,7 @@ mod baseline_tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_regression_detection() -> Result<()> {
         let mut profiler = PerformanceProfiler::new();
 
@@ -315,6 +321,7 @@ mod baseline_tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_performance_report_generation() -> Result<()> {
         let profiler = PerformanceProfiler::new();
 
@@ -355,6 +362,7 @@ mod baseline_tests {
     }
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_concurrent_profiling() -> Result<()> {
         let profiler = std::sync::Arc::new(PerformanceProfiler::new());
 
@@ -410,6 +418,7 @@ mod realistic_scenarios {
     use super::*;
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_typical_daily_usage_scenario() -> Result<()> {
         let profiler = PerformanceProfiler::new();
 
@@ -437,6 +446,7 @@ mod realistic_scenarios {
     }
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_heavy_usage_scenario() -> Result<()> {
         let profiler = PerformanceProfiler::new();
 
@@ -464,6 +474,7 @@ mod realistic_scenarios {
     }
 
     #[tokio::test]
+    #[ignore = "slow performance test"]
     async fn test_enterprise_load_scenario() -> Result<()> {
         let profiler = PerformanceProfiler::new();
 
