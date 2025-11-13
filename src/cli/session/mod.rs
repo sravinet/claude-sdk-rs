@@ -3,6 +3,9 @@
 //! This module provides functionality for managing Claude sessions,
 //! including creating, storing, retrieving, and managing session state.
 
+pub mod manager;
+pub mod storage;
+
 use crate::core::error::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -56,6 +59,9 @@ impl Default for SessionConfig {
     }
 }
 
+/// Session metadata information
+pub type SessionMetadata = HashMap<String, String>;
+
 /// Manages Claude sessions
 #[derive(Debug)]
 pub struct SessionManager {
@@ -66,17 +72,33 @@ pub struct SessionManager {
 }
 
 impl SessionManager {
-    /// Create a new session manager with default storage location
+    /// Create a new session manager for testing
+    pub fn new() -> Self {
+        Self {
+            data_dir: std::env::temp_dir(),
+            sessions: HashMap::new(),
+        }
+    }
+
+    /// Create a new session manager with default storage location (blocking)
     pub fn with_default_storage() -> Result<Self> {
         let data_dir = crate::cli::default_data_dir();
-        Self::new(data_dir)
+        // For default storage, just create a simple manager without async file operations
+        if !data_dir.exists() {
+            std::fs::create_dir_all(&data_dir)?;
+        }
+        
+        Ok(Self {
+            data_dir,
+            sessions: HashMap::new(),
+        })
     }
 
     /// Create a new session manager
-    pub fn new(data_dir: PathBuf) -> Result<Self> {
+    pub async fn from_data_dir(data_dir: PathBuf) -> Result<Self> {
         // Ensure the data directory exists
         if !data_dir.exists() {
-            std::fs::create_dir_all(&data_dir)?;
+            tokio::fs::create_dir_all(&data_dir).await?;
         }
 
         let mut manager = Self {
@@ -85,18 +107,18 @@ impl SessionManager {
         };
 
         // Load existing sessions
-        manager.load_sessions()?;
+        manager.load_sessions().await?;
 
         Ok(manager)
     }
 
     /// Create a new session
-    pub fn create_session(
+    pub async fn create_session(
         &mut self,
         name: String,
         description: Option<String>,
-        config: Option<SessionConfig>,
-    ) -> Result<SessionId> {
+    ) -> Result<Session> {
+        let config = Some(SessionConfig::default());
         let id = SessionId::new_v4();
         let now = Utc::now();
 
@@ -111,21 +133,22 @@ impl SessionManager {
         };
 
         // Save to disk
-        self.save_session(&session)?;
+        self.save_session(&session).await?;
 
         // Add to in-memory cache
+        let session_clone = session.clone();
         self.sessions.insert(id, session);
 
-        Ok(id)
+        Ok(session_clone)
     }
 
     /// Get a session by ID
-    pub fn get_session(&mut self, id: SessionId) -> Result<Option<&Session>> {
+    pub async fn get_session(&mut self, id: SessionId) -> Result<Option<&Session>> {
         if let Some(session) = self.sessions.get(&id) {
             // Update last accessed time
             let mut updated_session = session.clone();
             updated_session.last_accessed = Utc::now();
-            self.save_session(&updated_session)?;
+            self.save_session(&updated_session).await?;
             self.sessions.insert(id, updated_session);
             return Ok(self.sessions.get(&id));
         }
@@ -134,7 +157,7 @@ impl SessionManager {
     }
 
     /// Get a session by name
-    pub fn get_session_by_name(&mut self, name: &str) -> Result<Option<&Session>> {
+    pub async fn get_session_by_name(&mut self, name: &str) -> Result<Option<&Session>> {
         let id = self
             .sessions
             .values()
@@ -142,15 +165,15 @@ impl SessionManager {
             .map(|session| session.id);
 
         if let Some(id) = id {
-            self.get_session(id)
+            self.get_session(id).await
         } else {
             Ok(None)
         }
     }
 
     /// List all sessions
-    pub fn list_sessions(&self) -> Vec<&Session> {
-        self.sessions.values().collect()
+    pub async fn list_sessions(&self) -> Result<Vec<Session>> {
+        Ok(self.sessions.values().cloned().collect())
     }
 
     /// Get the current session ID (most recently accessed)
@@ -169,13 +192,13 @@ impl SessionManager {
     }
 
     /// Switch to a session by ID
-    pub fn switch_to_session(&mut self, id: SessionId) -> Result<()> {
+    pub async fn switch_to_session(&mut self, id: SessionId) -> Result<()> {
         if let Some(session) = self.sessions.get_mut(&id) {
             session.last_accessed = Utc::now();
             // Create a clone to avoid borrow checker issues
             let session_to_save = session.clone();
             let _ = session; // Explicitly drop the mutable borrow
-            self.save_session(&session_to_save)?;
+            self.save_session(&session_to_save).await?;
         }
         Ok(())
     }
@@ -195,7 +218,7 @@ impl SessionManager {
     }
 
     /// Update session metadata
-    pub fn update_session_metadata(
+    pub async fn update_session_metadata(
         &mut self,
         id: SessionId,
         key: String,
@@ -205,25 +228,25 @@ impl SessionManager {
             session.metadata.insert(key, value);
             session.last_accessed = Utc::now();
             let session_clone = session.clone();
-            self.save_session(&session_clone)?;
+            self.save_session(&session_clone).await?;
         }
         Ok(())
     }
 
     /// Load all sessions from disk
-    fn load_sessions(&mut self) -> Result<()> {
+    async fn load_sessions(&mut self) -> Result<()> {
         let sessions_dir = self.data_dir.join("sessions");
         if !sessions_dir.exists() {
             std::fs::create_dir_all(&sessions_dir)?;
             return Ok(());
         }
 
-        for entry in std::fs::read_dir(&sessions_dir)? {
-            let entry = entry?;
+        let mut entries = tokio::fs::read_dir(&sessions_dir).await?;
+        while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
 
             if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Ok(session) = self.load_session_from_file(&path) {
+                if let Ok(session) = self.load_session_from_file(&path).await {
                     self.sessions.insert(session.id, session);
                 }
             }
@@ -233,22 +256,22 @@ impl SessionManager {
     }
 
     /// Load a session from a file
-    fn load_session_from_file(&self, path: &Path) -> Result<Session> {
-        let content = std::fs::read_to_string(path)?;
+    async fn load_session_from_file(&self, path: &Path) -> Result<Session> {
+        let content = tokio::fs::read_to_string(path).await?;
         let session: Session = serde_json::from_str(&content)?;
         Ok(session)
     }
 
     /// Save a session to disk
-    fn save_session(&self, session: &Session) -> Result<()> {
+    async fn save_session(&self, session: &Session) -> Result<()> {
         let sessions_dir = self.data_dir.join("sessions");
         if !sessions_dir.exists() {
-            std::fs::create_dir_all(&sessions_dir)?;
+            tokio::fs::create_dir_all(&sessions_dir).await?;
         }
 
         let session_file = self.session_file_path(session.id);
         let content = serde_json::to_string_pretty(session)?;
-        std::fs::write(session_file, content)?;
+        tokio::fs::write(session_file, content).await?;
 
         Ok(())
     }
@@ -266,55 +289,60 @@ mod tests {
 
     fn create_test_manager() -> (SessionManager, TempDir) {
         let temp_dir = TempDir::new().unwrap();
-        let manager = SessionManager::new(temp_dir.path().to_path_buf()).unwrap();
+        let manager = SessionManager::new();
         (manager, temp_dir)
     }
 
-    #[test]
-    fn test_create_session() {
+    #[tokio::test]
+    async fn test_create_session() {
         let (mut manager, _temp_dir) = create_test_manager();
 
-        let session_id = manager
-            .create_session("test-session".to_string(), None, None)
+        let session = manager
+            .create_session("test-session".to_string(), None)
+            .await
             .unwrap();
 
-        assert!(manager.sessions.contains_key(&session_id));
+        assert!(manager.sessions.contains_key(&session.id));
 
-        let session = manager.get_session(session_id).unwrap().unwrap();
-        assert_eq!(session.name, "test-session");
-        assert!(session.description.is_none());
+        let retrieved_session = manager.get_session(session.id).await.unwrap().unwrap();
+        assert_eq!(retrieved_session.name, "test-session");
+        assert!(retrieved_session.description.is_none());
     }
 
-    #[test]
-    fn test_get_session_by_name() {
+    #[tokio::test]
+    async fn test_get_session_by_name() {
         let (mut manager, _temp_dir) = create_test_manager();
 
-        let _session_id = manager
-            .create_session("test-session".to_string(), None, None)
+        let _session = manager
+            .create_session("test-session".to_string(), None)
+            .await
             .unwrap();
 
         let session = manager
             .get_session_by_name("test-session")
+            .await
             .unwrap()
             .unwrap();
         assert_eq!(session.name, "test-session");
 
-        let not_found = manager.get_session_by_name("nonexistent").unwrap();
+        let not_found = manager.get_session_by_name("nonexistent").await.unwrap();
         assert!(not_found.is_none());
     }
 
-    #[test]
-    fn test_list_sessions() {
+    #[tokio::test]
+    async fn test_list_sessions() {
         let (mut manager, _temp_dir) = create_test_manager();
 
-        let _id1 = manager
-            .create_session("session1".to_string(), None, None)
+        let _session1 = manager
+            .create_session("session1".to_string(), None)
+            .await
             .unwrap();
-        let _id2 = manager
-            .create_session("session2".to_string(), None, None)
+        let _session2 = manager
+            .create_session("session2".to_string(), None)
+            .await
             .unwrap();
 
-        let sessions = manager.list_sessions();
+        let sessions = manager.list_sessions().await.unwrap();
         assert_eq!(sessions.len(), 2);
 
         let names: Vec<&str> = sessions.iter().map(|s| s.name.as_str()).collect();
@@ -322,13 +350,15 @@ mod tests {
         assert!(names.contains(&"session2"));
     }
 
-    #[test]
-    fn test_delete_session() {
+    #[tokio::test]
+    async fn test_delete_session() {
         let (mut manager, _temp_dir) = create_test_manager();
 
-        let session_id = manager
-            .create_session("test-session".to_string(), None, None)
+        let session = manager
+            .create_session("test-session".to_string(), None)
+            .await
             .unwrap();
+        let session_id = session.id;
 
         assert!(manager.sessions.contains_key(&session_id));
 
@@ -341,37 +371,42 @@ mod tests {
         assert!(!deleted_again);
     }
 
-    #[test]
-    fn test_session_persistence() {
+    #[tokio::test]
+    async fn test_session_persistence() {
         let temp_dir = TempDir::new().unwrap();
         let data_dir = temp_dir.path().to_path_buf();
 
         let session_id = {
-            let mut manager = SessionManager::new(data_dir.clone()).unwrap();
-            manager
-                .create_session("persistent-session".to_string(), None, None)
-                .unwrap()
+            let mut manager = SessionManager::from_data_dir(data_dir.clone()).await.unwrap();
+            let session = manager
+                .create_session("persistent-session".to_string(), None)
+                .await
+                .unwrap();
+            session.id
         };
 
         // Create a new manager instance - should load the session from disk
-        let mut manager2 = SessionManager::new(data_dir).unwrap();
-        let session = manager2.get_session(session_id).unwrap().unwrap();
+        let mut manager2 = SessionManager::from_data_dir(data_dir).await.unwrap();
+        let session = manager2.get_session(session_id).await.unwrap().unwrap();
         assert_eq!(session.name, "persistent-session");
     }
 
-    #[test]
-    fn test_update_session_metadata() {
+    #[tokio::test]
+    async fn test_update_session_metadata() {
         let (mut manager, _temp_dir) = create_test_manager();
 
-        let session_id = manager
-            .create_session("test-session".to_string(), None, None)
+        let session = manager
+            .create_session("test-session".to_string(), None)
+            .await
             .unwrap();
+        let session_id = session.id;
 
         manager
             .update_session_metadata(session_id, "key1".to_string(), "value1".to_string())
+            .await
             .unwrap();
 
-        let session = manager.get_session(session_id).unwrap().unwrap();
+        let session = manager.get_session(session_id).await.unwrap().unwrap();
         assert_eq!(session.metadata.get("key1"), Some(&"value1".to_string()));
     }
 }

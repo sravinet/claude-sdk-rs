@@ -260,9 +260,7 @@ impl ApplicationProfiler {
         config: &ProfilingConfig,
     ) -> Result<ProfilingResult> {
         let _storage_path = self.temp_dir.path().join("session_profile");
-        let session_manager = Arc::new(std::sync::Mutex::new(SessionManager::new(
-            self.temp_dir.path().to_path_buf(),
-        )?));
+        let session_manager = Arc::new(tokio::sync::RwLock::new(SessionManager::new()));
 
         let mut metrics = PerformanceMetrics::new();
         let initial_memory = get_memory_usage_mb();
@@ -276,11 +274,11 @@ impl ApplicationProfiler {
             let session_timer = Timer::start("session_operation");
 
             // Create session
-            let _session =
-                session_manager
-                    .lock()
-                    .unwrap()
-                    .create_session(session_name, None, None)?;
+            let _session = session_manager
+                .write()
+                .await
+                .create_session(session_name, None)
+                .await?;
 
             let session_duration = session_timer.stop();
             metrics.storage_metrics.writes += 1;
