@@ -690,7 +690,7 @@ pub struct TimeSeriesPerformanceReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::analytics::dashboard_tests::DashboardTestFixture;
+    use crate::cli::analytics::dashboard_test::DashboardTestFixture;
     use crate::cli::analytics::test_utils::AnalyticsTestDataGenerator;
 
     #[tokio::test]

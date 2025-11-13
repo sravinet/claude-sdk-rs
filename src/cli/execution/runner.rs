@@ -411,13 +411,12 @@ mod tests {
     async fn create_test_runner() -> Result<CommandRunner> {
         let temp_dir = tempdir().unwrap();
         let config = StorageConfig {
-            data_dir: temp_dir.path().to_path_buf(),
-            sessions_file: "test_sessions.json".to_string(),
-            current_session_file: "test_current.json".to_string(),
+            base_dir: temp_dir.path().to_path_buf(),
+            compress: false,
         };
 
         let storage = Arc::new(JsonFileStorage::new(config));
-        let session_manager = Arc::new(tokio::sync::RwLock::new(SessionManager::new(storage)));
+        let session_manager = Arc::new(tokio::sync::RwLock::new(SessionManager::new()));
 
         CommandRunner::new(session_manager)
     }

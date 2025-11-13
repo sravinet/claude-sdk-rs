@@ -34,7 +34,7 @@
 use super::{AnalyticsEngine, DashboardManager, LiveDashboardData, RealTimeAnalyticsStream};
 // Test utilities - also used in profiling functions
 #[cfg(test)]
-use crate::cli::analytics::dashboard_tests::DashboardTestFixture;
+use crate::cli::analytics::dashboard_test::DashboardTestFixture;
 #[cfg(test)]
 use crate::cli::analytics::test_utils::AnalyticsTestDataGenerator;
 use crate::cli::error::Result;
@@ -323,35 +323,18 @@ impl PerformanceProfiler {
                                     top_commands: vec![],
                                     active_alerts: vec![],
                                     last_updated: Utc::now(),
-                                }),
+                                })
+                                .map_err(|e| e.into()),
                             LoadTestScenario::RealTimeStreaming => {
-                                let stream = RealTimeAnalyticsStream::new(Arc::new(
+                                match RealTimeAnalyticsStream::new(Arc::new(
                                     fixture_clone.analytics_engine.clone(),
                                 ))
-                                .await?;
-                                stream.start_streaming().await?;
-                                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-                                stream.stop_streaming();
-                                Ok(crate::cli::analytics::DashboardData {
-                                    today_cost: 0.0,
-                                    today_commands: 0,
-                                    success_rate: 100.0,
-                                    recent_activity: vec![],
-                                    top_commands: vec![],
-                                    active_alerts: vec![],
-                                    last_updated: Utc::now(),
-                                })
-                            }
-                            LoadTestScenario::MixedWorkload => {
-                                // Alternate between different operations
-                                if total_requests_clone.load(Ordering::Relaxed) % 3 == 0 {
-                                    fixture_clone.analytics_engine.get_dashboard_data().await
-                                } else {
-                                    fixture_clone
-                                        .analytics_engine
-                                        .generate_summary(1)
-                                        .await
-                                        .map(|_| crate::cli::analytics::DashboardData {
+                                .await {
+                                    Ok(stream) => {
+                                        let _ = stream.start_streaming().await;
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+                                        stream.stop_streaming();
+                                        Ok(crate::cli::analytics::DashboardData {
                                             today_cost: 0.0,
                                             today_commands: 0,
                                             success_rate: 100.0,
@@ -360,6 +343,30 @@ impl PerformanceProfiler {
                                             active_alerts: vec![],
                                             last_updated: Utc::now(),
                                         })
+                                    }
+                                    Err(e) => Err(e)
+                                }
+                            }
+                            LoadTestScenario::MixedWorkload => {
+                                // Alternate between different operations
+                                if total_requests_clone.load(Ordering::Relaxed) % 3 == 0 {
+                                    fixture_clone.analytics_engine.get_dashboard_data().await
+                                } else {
+                                    match fixture_clone
+                                        .analytics_engine
+                                        .generate_summary(1)
+                                        .await {
+                                        Ok(_) => Ok(crate::cli::analytics::DashboardData {
+                                            today_cost: 0.0,
+                                            today_commands: 0,
+                                            success_rate: 100.0,
+                                            recent_activity: vec![],
+                                            top_commands: vec![],
+                                            active_alerts: vec![],
+                                            last_updated: Utc::now(),
+                                        }),
+                                        Err(e) => Err(e)
+                                    }
                                 }
                             }
                         };
@@ -459,7 +466,7 @@ impl PerformanceProfiler {
         let mut dashboard_times = Vec::new();
         let mut memory_usage = Vec::new();
 
-        for volume in data_volumes {
+        for &volume in &data_volumes {
             let profile = self.profile_dashboard_generation(volume).await?;
             dashboard_times.push(profile.total_duration_ms);
             memory_usage.push(profile.peak_memory_mb);
@@ -581,12 +588,13 @@ impl PerformanceProfiler {
         };
 
         let load_test_results = self.run_load_test(load_config).await?;
+        let recommendations = self.generate_optimization_recommendations(&profiles);
 
         Ok(PerformanceReport {
             profiles,
             load_test_results,
             baseline: self.baseline.clone(),
-            recommendations: self.generate_optimization_recommendations(&profiles),
+            recommendations,
             generated_at: Utc::now(),
         })
     }

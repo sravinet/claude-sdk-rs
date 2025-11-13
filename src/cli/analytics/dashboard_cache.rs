@@ -810,7 +810,7 @@ impl DashboardCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::analytics::dashboard_tests::DashboardTestFixture;
+    use crate::cli::analytics::dashboard_test::DashboardTestFixture;
 
     #[tokio::test]
     async fn test_dashboard_cache_basic_operations() -> Result<()> {

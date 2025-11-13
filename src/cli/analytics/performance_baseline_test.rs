@@ -3,7 +3,7 @@
 //! This module provides tools for establishing performance baselines and
 //! detecting performance regressions in analytics operations.
 
-use super::dashboard_tests::DashboardTestFixture;
+use super::dashboard_test::DashboardTestFixture;
 use super::performance_profiler::*;
 use super::test_utils::AnalyticsTestDataGenerator;
 use crate::cli::error::Result;

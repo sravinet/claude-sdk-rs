@@ -44,7 +44,7 @@ async fn basic_usage_tracking() -> Result<(), Box<dyn std::error::Error>> {
     println!("1. Basic Usage Tracking");
     println!("   Tracking basic usage metrics for Claude SDK operations\n");
 
-    let client = Client::builder().stream_format(StreamFormat::Json).build();
+    let client = Client::builder().stream_format(StreamFormat::Json).build()?;
 
     println!("   Performing tracked operations:");
 
@@ -119,7 +119,7 @@ async fn cost_analytics() -> Result<(), Box<dyn std::error::Error>> {
     println!("2. Cost Analytics");
     println!("   Detailed cost tracking and analysis\n");
 
-    let client = Client::builder().stream_format(StreamFormat::Json).build();
+    let client = Client::builder().stream_format(StreamFormat::Json).build()?;
 
     println!("   Cost Tracking Demo:");
 
@@ -192,7 +192,7 @@ async fn performance_metrics() -> Result<(), Box<dyn std::error::Error>> {
     println!("3. Performance Metrics");
     println!("   Tracking and analyzing performance characteristics\n");
 
-    let client = Client::builder().stream_format(StreamFormat::Json).build();
+    let client = Client::builder().stream_format(StreamFormat::Json).build()?;
 
     println!("   Performance Benchmarking:");
 

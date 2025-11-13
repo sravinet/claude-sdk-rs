@@ -601,13 +601,27 @@ impl OptimizedDashboardFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cli::{cost::CostTracker, history::HistoryStore, analytics::AnalyticsConfig};
     use std::sync::Arc;
+    use tempfile::tempdir;
     use tokio::time::{timeout, Duration};
+
+    async fn create_test_analytics_engine() -> Arc<AnalyticsEngine> {
+        let temp_dir = tempdir().unwrap();
+        let cost_tracker = Arc::new(tokio::sync::RwLock::new(
+            CostTracker::new(temp_dir.path().join("costs.json")).unwrap()
+        ));
+        let history_store = Arc::new(tokio::sync::RwLock::new(
+            HistoryStore::new(temp_dir.path().join("history.json")).unwrap()
+        ));
+        let config = AnalyticsConfig::default();
+        Arc::new(AnalyticsEngine::new(cost_tracker, history_store, config))
+    }
 
     #[tokio::test]
     async fn test_optimized_dashboard_creation() {
         let config = OptimizedDashboardConfig::default();
-        let analytics_engine = Arc::new(AnalyticsEngine::new_mock());
+        let analytics_engine = create_test_analytics_engine().await;
 
         let dashboard = OptimizedDashboardManager::new(analytics_engine, config).await;
         assert!(dashboard.is_ok());
@@ -616,7 +630,7 @@ mod tests {
     #[tokio::test]
     async fn test_client_subscription() {
         let config = OptimizedDashboardConfig::default();
-        let analytics_engine = Arc::new(AnalyticsEngine::new_mock());
+        let analytics_engine = create_test_analytics_engine().await;
         let dashboard = OptimizedDashboardManager::new(analytics_engine, config)
             .await
             .unwrap();
@@ -639,7 +653,7 @@ mod tests {
     #[tokio::test]
     async fn test_streaming_metrics() {
         let config = OptimizedDashboardConfig::default();
-        let analytics_engine = Arc::new(AnalyticsEngine::new_mock());
+        let analytics_engine = create_test_analytics_engine().await;
         let dashboard = OptimizedDashboardManager::new(analytics_engine, config)
             .await
             .unwrap();

@@ -5,7 +5,7 @@
 
 use crate::cli::execution::ExecutionResult;
 use crate::cli::output::AgentId;
-use crate::cli::session::Session;
+use crate::cli::session::{Session, SessionConfig};
 use crate::{cli::error::InteractiveError, cli::error::Result};
 use chrono::Utc;
 use colored::{Color, Colorize};
@@ -598,8 +598,9 @@ mod tests {
             name: "Test Session".to_string(),
             description: Some("Test description".to_string()),
             created_at: Utc::now(),
-            last_active: Utc::now(),
-            metadata: SessionMetadata::default(),
+            last_accessed: Utc::now(),
+            config: SessionConfig::default(),
+            metadata: std::collections::HashMap::new(),
         };
 
         let table = formatter.format_session_table(&[session]).unwrap();

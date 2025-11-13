@@ -6,7 +6,7 @@
 use super::{
     dashboard::{DashboardConfig, DashboardManager},
     dashboard_cache::{CacheConfig, DashboardCache},
-    dashboard_tests::DashboardTestFixture,
+    dashboard_test::DashboardTestFixture,
     test_utils::AnalyticsTestDataGenerator,
     time_series_optimizer::{TimeSeriesOptimizer, TimeSeriesType},
     AnalyticsEngine,

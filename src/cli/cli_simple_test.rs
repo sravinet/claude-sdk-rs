@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod cli_simple_tests {
-    use crate::cli::cli::{CostCommand, HistoryCommand, ListCommand, RunCommand, SessionAction};
+    use crate::cli::cli::{ConfigAction, CostCommand, HistoryCommand, ListCommand, RunCommand, SessionAction};
 
     #[test]
     fn test_list_command_creation() {
