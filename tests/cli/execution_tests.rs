@@ -3,7 +3,7 @@
 //! These tests verify that the CommandRunner, ParallelExecutor, and OutputFormatter
 //! work together correctly and integrate properly with the session management system.
 
-use claude_sdk_rs_interactive::{
+use claude_sdk_rs::{
     execution::{
         runner::CommandRunner, ExecutionContext, ParallelConfig, ParallelExecutor, RunnerConfig,
     },
@@ -273,7 +273,7 @@ async fn test_output_styles_and_formatting() -> Result<()> {
 
 #[tokio::test]
 async fn test_progress_indicator() -> Result<()> {
-    use claude_sdk_rs_interactive::output::ProgressIndicator;
+    use claude_sdk_rs::output::ProgressIndicator;
 
     let mut progress = ProgressIndicator::new(10, "Testing Progress".to_string());
 

@@ -4,7 +4,7 @@
 //! focusing on usage metrics, performance metrics, cost integration, and trend analysis.
 
 use chrono::{DateTime, Duration, Utc};
-use claude_sdk_rs_interactive::analytics::metrics::*;
+use claude_sdk_rs::analytics::metrics::*;
 use std::collections::HashMap;
 use uuid::Uuid;
 

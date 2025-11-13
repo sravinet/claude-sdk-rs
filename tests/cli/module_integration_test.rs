@@ -3,7 +3,7 @@
 //! These tests validate that all modules work together correctly
 //! using realistic data patterns and usage scenarios.
 
-use claude_sdk_rs_interactive::{
+use claude_sdk_rs::{
     analytics::{AnalyticsConfig, AnalyticsEngine},
     cost::{CostEntry, CostFilter, CostTracker},
     history::{HistoryEntry, HistorySearch, HistoryStore},

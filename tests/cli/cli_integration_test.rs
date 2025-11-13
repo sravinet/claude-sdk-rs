@@ -8,7 +8,7 @@
 //! - Performance with large data volumes
 //! - Output formatting and user interactions
 
-use claude_sdk_rs_interactive::{
+use claude_sdk_rs::{
     analytics::simple::SimpleAnalyticsEngine,
     cli::Cli,
     cost::{CostEntry, CostFilter, CostTracker},

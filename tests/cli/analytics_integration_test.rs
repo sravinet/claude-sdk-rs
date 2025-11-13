@@ -8,7 +8,7 @@
 //! - Error handling and recovery
 
 use chrono::{Duration, Utc};
-use claude_sdk_rs_interactive::{
+use claude_sdk_rs::{
     analytics::{
         AlertSeverity, AlertType, AnalyticsConfig, AnalyticsEngine, DashboardConfig,
         DashboardManager, HealthStatus, MetricsEngine, RealTimeAnalyticsStream, ReportFormat,

@@ -2,7 +2,7 @@
 //!
 //! These tests validate basic integration without complex concurrency
 
-use claude_sdk_rs_interactive::{
+use claude_sdk_rs::{
     analytics::{AnalyticsConfig, AnalyticsEngine},
     cost::{CostEntry, CostFilter, CostTracker},
     history::{HistoryEntry, HistorySearch, HistoryStore},

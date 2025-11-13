@@ -8,7 +8,7 @@
 //! - End-to-end workflows
 
 use chrono::{DateTime, Duration, Utc};
-use claude_sdk_rs_interactive::{
+use claude_sdk_rs::{
     analytics::simple::{
         SimpleAnalyticsEngine, SimpleAnalyticsSummary, SimpleDashboardData, SimpleSessionReport,
     },
