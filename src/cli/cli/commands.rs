@@ -208,15 +208,15 @@ impl SessionAction {
         match self {
             SessionAction::Create { name, description } => {
                 // Create new session
-                match manager.create_session(name.clone(), description.clone(), None) {
-                    Ok(session_id) => {
-                        let session = manager.get_session(session_id)?.unwrap().clone();
+                match manager.create_session(name.clone(), description.clone()).await {
+                    Ok(session) => {
+                        let session_clone = session.clone();
                         formatter.println(&formatter.format_message(
-                            &format!("✓ Created session '{}'", session.name),
+                            &format!("✓ Created session '{}'", session_clone.name),
                             OutputStyle::Success,
                         ))?;
 
-                        if let Some(desc) = &session.description {
+                        if let Some(desc) = &session_clone.description {
                             formatter.println(&formatter.format_message(
                                 &format!("  Description: {}", desc),
                                 OutputStyle::Info,
@@ -246,7 +246,7 @@ impl SessionAction {
 
             SessionAction::Delete { session, force } => {
                 // Try to find session by name or ID
-                let session_to_delete = manager.get_session_by_name(session)?;
+                let session_to_delete = manager.get_session_by_name(session).await?;
 
                 if session_to_delete.is_none() {
                     return Err(InteractiveError::session_not_found(session));
@@ -299,7 +299,7 @@ impl SessionAction {
             }
 
             SessionAction::List { detailed } => {
-                let sessions = manager.list_sessions();
+                let sessions = manager.list_sessions().await?;
 
                 if sessions.is_empty() {
                     formatter.println(&formatter.format_message(
@@ -374,13 +374,13 @@ impl SessionAction {
 
             SessionAction::Switch { session } => {
                 // First find the session by name
-                let session_to_switch = manager.get_session_by_name(session)?;
+                let session_to_switch = manager.get_session_by_name(session).await?;
                 if let Some(session_info) = session_to_switch.cloned() {
-                    match manager.switch_to_session(session_info.id) {
+                    match manager.switch_to_session(session_info.id).await {
                         Ok(_) => {
                             // Get the session details after switching
                             if let Some(switched_session) =
-                                manager.get_session(session_info.id)?.cloned()
+                                manager.get_session(session_info.id).await?.cloned()
                             {
                                 formatter.println(&formatter.format_message(
                                     &format!("✓ Switched to session '{}'", switched_session.name),
@@ -469,7 +469,7 @@ impl RunCommand {
                 match session_manager_arc
                     .write()
                     .await
-                    .get_session_by_name(session_name)?
+                    .get_session_by_name(session_name).await?
                     .cloned()
                 {
                     Some(s) => s,
@@ -489,15 +489,14 @@ impl RunCommand {
                     Some(s) => s,
                     None => {
                         // Create a default session
-                        let session_id = session_manager_arc.write().await.create_session(
+                        let session = session_manager_arc.write().await.create_session(
                             "default".to_string(),
                             Some("Default session created automatically".to_string()),
-                            None,
-                        )?;
+                        ).await?;
                         session_manager_arc
                             .write()
                             .await
-                            .get_session(session_id)?
+                            .get_session(session.id).await?
                             .unwrap()
                             .clone()
                     }
@@ -609,12 +608,12 @@ impl RunCommand {
                 session.id,
                 "total_commands".to_string(),
                 result_count.to_string(),
-            )?;
+            ).await?;
             session_manager_arc.write().await.update_session_metadata(
                 session.id,
                 "total_cost".to_string(),
                 total_cost.to_string(),
-            )?;
+            ).await?;
         } else {
             // Single execution
             formatter.println(&formatter.format_message(
@@ -684,13 +683,13 @@ impl RunCommand {
                         session.id,
                         "total_commands".to_string(),
                         "1".to_string(),
-                    )?;
+                    ).await?;
                     if let Some(cost) = exec_result.cost {
                         session_manager_arc.write().await.update_session_metadata(
                             session.id,
                             "total_cost".to_string(),
                             cost.to_string(),
-                        )?;
+                        ).await?;
                     }
                 }
                 Err(e) => {
@@ -754,7 +753,7 @@ impl CostCommand {
 
         // Session filter
         if let Some(session_name) = &self.session {
-            match session_manager.get_session_by_name(session_name)? {
+            match session_manager.get_session_by_name(session_name).await? {
                 Some(session) => {
                     filter.session_id = Some(session.id);
                 }
@@ -988,7 +987,7 @@ impl HistoryCommand {
 
         // Session filter
         if let Some(session_name) = &self.session {
-            match session_manager.get_session_by_name(session_name)? {
+            match session_manager.get_session_by_name(session_name).await? {
                 Some(session) => {
                     criteria.session_id = Some(session.id);
                 }

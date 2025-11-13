@@ -148,7 +148,7 @@ where
 
     async fn process_batch(&self, batch: Vec<T>) -> Result<()> {
         let permit = self.semaphore.clone().acquire_owned().await.map_err(|_| {
-            crate::error::InteractiveError::Execution("Failed to acquire semaphore".to_string())
+            crate::cli::error::InteractiveError::Execution("Failed to acquire semaphore".to_string())
         })?;
         let processor = self.processor.as_ref();
         let future = processor(batch);

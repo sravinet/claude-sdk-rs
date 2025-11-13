@@ -47,7 +47,7 @@ impl SimpleBatchProcessor {
 
         for batch in chunks {
             let permit = self.semaphore.clone().acquire_owned().await.map_err(|_| {
-                crate::error::InteractiveError::Execution("Failed to acquire semaphore".to_string())
+                crate::cli::error::InteractiveError::Execution("Failed to acquire semaphore".to_string())
             })?;
             let batch_future = processor(batch);
 
