@@ -339,6 +339,27 @@ pub use crate::runtime::{Client, MessageStream, QueryBuilder};
 #[cfg(feature = "mcp")]
 pub use crate::mcp::{McpConfig, McpServer};
 
+// Re-export CLI types when feature is enabled
+#[cfg(feature = "cli")]
+pub mod analytics {
+    pub use crate::cli::analytics::{AnalyticsConfig, AnalyticsEngine};
+}
+
+#[cfg(feature = "cli")]
+pub mod cost {
+    pub use crate::cli::cost::{CostEntry, CostFilter, CostTracker};
+}
+
+#[cfg(feature = "cli")]
+pub mod history {
+    pub use crate::cli::history::{HistoryEntry, HistorySearch, HistoryStore};
+}
+
+#[cfg(feature = "cli")]
+pub mod session {
+    pub use crate::cli::session::{SessionId, SessionManager};
+}
+
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use crate::{Client, Config, Error, Message, MessageType, Result, StreamFormat};
