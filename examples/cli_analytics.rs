@@ -81,7 +81,7 @@ async fn basic_usage_tracking() -> Result<(), Box<dyn std::error::Error>> {
                     }
 
                     if let Some(tokens) = metadata.tokens_used {
-                        let total = tokens.input_tokens + tokens.output_tokens;
+                        let total = tokens.input_tokens.unwrap_or(0) + tokens.output_tokens.unwrap_or(0);
                         if total > 0 {
                             total_tokens += total;
                             println!("   Tokens: {}", total);
@@ -142,7 +142,7 @@ async fn cost_analytics() -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(cost) = metadata.cost_usd {
                         let tokens = metadata
                             .tokens_used
-                            .map(|t| t.input_tokens + t.output_tokens)
+                            .map(|t| t.input_tokens.unwrap_or(0) + t.output_tokens.unwrap_or(0))
                             .unwrap_or(0);
 
                         cost_breakdown.push((scenario, cost, tokens));
@@ -166,7 +166,7 @@ async fn cost_analytics() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Cost Analysis:");
     println!("   ==============");
     let total_cost: f64 = cost_breakdown.iter().map(|(_, cost, _)| cost).sum();
-    let total_tokens: u32 = cost_breakdown.iter().map(|(_, _, tokens)| tokens).sum();
+    let total_tokens: u32 = cost_breakdown.iter().map(|(_, _, tokens)| *tokens as u32).sum();
 
     println!("   Total cost: ${:.6}", total_cost);
     println!("   Total tokens: {}", total_tokens);
@@ -233,7 +233,7 @@ async fn performance_metrics() -> Result<(), Box<dyn std::error::Error>> {
 
                 if let Some(metadata) = response.metadata {
                     if let Some(tokens) = metadata.tokens_used {
-                        let total = tokens.input_tokens + tokens.output_tokens;
+                        let total = tokens.input_tokens.unwrap_or(0) + tokens.output_tokens.unwrap_or(0);
                         if total > 0 {
                             println!(
                                 "   Token throughput: {:.2} tokens/sec",
@@ -302,7 +302,7 @@ async fn session_analytics() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::builder()
         .stream_format(StreamFormat::Json)
         .system_prompt("You are a helpful assistant. Keep track of our conversation.")
-        .build();
+        .build()?;
 
     println!("   Session Analytics Tracking:");
 
@@ -322,7 +322,7 @@ async fn session_analytics() -> Result<(), Box<dyn std::error::Error>> {
         println!("   Query {}: {}", i + 1, query);
 
         let query_start = std::time::Instant::now();
-        match client.query(query).send_full().await {
+        match client.query(*query).send_full().await {
             Ok(response) => {
                 let query_duration = query_start.elapsed();
 
@@ -334,7 +334,7 @@ async fn session_analytics() -> Result<(), Box<dyn std::error::Error>> {
                     cost = metadata.cost_usd.unwrap_or(0.0);
                     tokens = metadata
                         .tokens_used
-                        .and_then(|t| t.total_tokens)
+                        .map(|t| t.input_tokens.unwrap_or(0) + t.output_tokens.unwrap_or(0))
                         .unwrap_or(0);
                     session_id = metadata.session_id;
                 }
@@ -361,7 +361,7 @@ async fn session_analytics() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Total queries: {}", session_data.len());
 
     let total_cost: f64 = session_data.iter().map(|(_, _, cost, _, _)| cost).sum();
-    let total_tokens: u32 = session_data.iter().map(|(_, _, _, tokens, _)| tokens).sum();
+    let total_tokens: u32 = session_data.iter().map(|(_, _, _, tokens, _)| *tokens as u32).sum();
     let total_chars: usize = session_data.iter().map(|(_, _, _, _, chars)| chars).sum();
 
     println!("   Total cost: ${:.6}", total_cost);
